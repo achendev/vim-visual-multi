@@ -254,7 +254,7 @@ fun! vm#commands#find_under(visual, whole, ...) abort
     call s:init(a:whole, 0, 1)
 
     "Ctrl-N command
-    if a:0 && s:is_r() | return vm#commands#find_next(0, 0) | endif
+    if a:0 && (s:is_r() || s:X()) | return vm#commands#find_next(0, 0) | endif
 
     " yank and create region
     if !a:visual | exe 'normal! viwy`]' | endif
@@ -564,7 +564,7 @@ fun! vm#commands#regex_motion(regex, count, remove) abort
                 continue
             endif
             if X
-                let [r.L, r.b] = getpos('.')[1:2]
+                let[r.L, r.b] = getpos('.')[1:2]
                 call r.update_region()
             else
                 call r.update_cursor_pos()
@@ -665,7 +665,7 @@ fun! vm#commands#align_char(count) abort
     let n = a:count | let s = n>1? 's' : ''
     echohl Label    | echo 'Align with '.n.' char'.s.' > ' | echohl None
 
-    let C = []
+    let C =[]
     while n
         let c = nr2char(getchar())
         if c == "\<esc>" | echohl WarningMsg | echon ' ...Aborted' | return
@@ -864,7 +864,7 @@ endfun
 
 fun! vm#commands#reselect_last()
     let was_active = s:init(0, 1, 0)
-    if empty(get(b:, 'VM_LastBackup', {})) || empty(get(b:VM_LastBackup, 'regions', []))
+    if empty(get(b:, 'VM_LastBackup', {})) || empty(get(b:VM_LastBackup, 'regions',[]))
         return s:F.exit('No regions to restore')
     endif
 
