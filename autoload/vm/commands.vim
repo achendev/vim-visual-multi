@@ -254,7 +254,7 @@ fun! vm#commands#find_under(visual, whole, ...) abort
     call s:init(a:whole, 0, 1)
 
     "Ctrl-N command
-    if a:0 && (s:is_r() || s:X()) | return vm#commands#find_next(0, 0) | endif
+    if a:0 && (s:is_r() || (s:X() && !empty(s:R()))) | return vm#commands#find_next(0, 0) | endif
 
     " yank and create region
     if !a:visual | exe 'normal! viwy`]' | endif
