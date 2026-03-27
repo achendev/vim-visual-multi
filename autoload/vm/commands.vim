@@ -133,10 +133,26 @@ endfun
 
 fun! vm#commands#add_cursor_at_word(yank, search) abort
     " Add a pattern for current word, place cursor at word begin.
+    
+    let is_on_search_match = 0
+    if v:hlsearch && @/ != ''
+        try
+            let [l, c] = searchpos(@/, 'cnWc')
+            if l == line('.') && c == col('.')
+                let is_on_search_match = 1
+            endif
+        catch
+        endtry
+    endif
+
     call s:init(0, 1, 0)
 
     if a:yank
-        keepjumps normal! viwy`[
+        if is_on_search_match
+            exe 'keepjumps normal! "' . s:v.def_reg . 'gny`['
+        else
+            exe 'keepjumps normal! "' . s:v.def_reg . 'viwy`['
+        endif
     endif
     if a:search | call s:Search.add() | endif
 
@@ -231,7 +247,21 @@ endfun
 
 fun! vm#commands#ctrln(count) abort
     " Ctrl-N command: find word under cursor.
-    call s:init(1, 0, 0)
+    
+    let is_on_search_match = 0
+    if v:hlsearch && @/ != ''
+        try
+            let [l, c] = searchpos(@/, 'cnWc')
+            if l == line('.') && c == col('.')
+                let is_on_search_match = 1
+            endif
+        catch
+        endtry
+    endif
+
+    let whole_word = is_on_search_match ? 0 : 1
+
+    call s:init(whole_word, 0, 0)
     let no_reselect = get(g:, 'VM_notify_previously_selected', 0) == 2
 
     if !s:X() && s:is_r()
@@ -240,7 +270,7 @@ fun! vm#commands#ctrln(count) abort
         call s:G.update_and_select_region(pos)
     else
         for i in range(a:count)
-            call vm#commands#find_under(0, 1, 1)
+            call vm#commands#find_under(0, whole_word, 1, is_on_search_match)
             if no_reselect && s:v.was_region_at_pos
                 break
             endif
@@ -257,7 +287,14 @@ fun! vm#commands#find_under(visual, whole, ...) abort
     if a:0 && (s:is_r() || (s:X() && !empty(s:R()))) | return vm#commands#find_next(0, 0) | endif
 
     " yank and create region
-    if !a:visual | exe 'normal! viwy`]' | endif
+    if !a:visual 
+        let is_on_search_match = a:0 > 1 ? a:2 : 0
+        if is_on_search_match
+            exe 'normal! "' . s:v.def_reg . 'gny`]'
+        else
+            exe 'normal! "' . s:v.def_reg . 'viwy`]' 
+        endif
+    endif
 
     "replace region if calling the command on an existing region
     if s:is_r() | call s:G.region_at_pos().remove() | endif
@@ -271,7 +308,21 @@ endfun
 
 fun! vm#commands#find_all(visual, whole) abort
     " Find all words under cursor or occurrences of visual selection.
-    call s:init(a:whole, 0, 1)
+    
+    let is_on_search_match = 0
+    if !a:visual && v:hlsearch && @/ != ''
+        try
+            let [l, c] = searchpos(@/, 'cnWc')
+            if l == line('.') && c == col('.')
+                let is_on_search_match = 1
+            endif
+        catch
+        endtry
+    endif
+
+    let whole_word = is_on_search_match ? 0 : a:whole
+
+    call s:init(whole_word, 0, 1)
 
     let pos = getpos('.')[1:2]
     let s:v.eco = 1
@@ -279,11 +330,11 @@ fun! vm#commands#find_all(visual, whole) abort
     if !a:visual
         let R = s:G.region_at_pos()
         if empty(R)
-            let R = vm#commands#find_under(0, a:whole)
+            let R = vm#commands#find_under(0, whole_word, 1, is_on_search_match)
         endif
         call s:Search.update_patterns(R.pat)
     else
-        let R = vm#commands#find_under(1, a:whole)
+        let R = vm#commands#find_under(1, whole_word)
     endif
 
     call s:Search.join()
@@ -397,7 +448,7 @@ fun! vm#commands#find_prev(skip, nav) abort
 
     let r = s:G.region_at_pos()
     if empty(r)  | let r = s:G.select_region(s:v.index) | endif
-    if !empty(r) | let pos = [r.l, r.a]
+    if !empty(r) | let pos =[r.l, r.a]
     else         | let pos = getpos('.')[1:2]
     endif
 
@@ -552,7 +603,7 @@ fun! vm#commands#regex_motion(regex, count, remove) abort
     endif
 
     call s:F.Scroll.get()
-    let [ R, X ] = [ s:R()[ s:v.index ], s:X() ]
+    let[ R, X ] = [ s:R()[ s:v.index ], s:X() ]
     call s:before_move()
 
     if s:v.direction
@@ -610,7 +661,7 @@ fun! s:call_motion(...) abort
     call s:F.Scroll.get()
     let R = s:R()[ s:v.index ]
 
-    let regions = (a:0 && a:1) || s:v.single_region ? [R] : s:R()
+    let regions = (a:0 && a:1) || s:v.single_region ?[R] : s:R()
 
     call s:before_move()
 
